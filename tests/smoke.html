@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>smoke</title>
+<script type="importmap">{"imports":{"three":"../vendor/three.module.js"}}</script>
+</head><body>
+<script type="module">
+import * as THREE from 'three';
+import { AI, FOLLOWUPS } from '../js/ai.js';
+import { Telemetry } from '../js/telemetry.js';
+import { World } from '../js/world.js';
+
+const out = [];
+const ok = (name, cond) => out.push(`SMOKE:${cond ? 'PASS' : 'FAIL'}:${name}`);
+
+ok('rubric-suit', AI.scoreAttireLocal({ outfit: 'suit', hair: 'black', industry: 'corp' }) === 100);
+ok('rubric-casual', AI.scoreAttireLocal({ outfit: 'casual', hair: 'brown', industry: 'startup' }) === 80);
+ok('rubric-training', AI.scoreAttireLocal({ outfit: 'training', hair: 'blue', industry: 'corp' }) === 40);
+
+const t1 = await AI.stt(null);
+ok('stt-string', typeof t1 === 'string' && t1.length > 5);
+const e1 = await AI.evaluateAnswer('q', t1);
+ok('eval-first-82', e1.score === 82 && typeof e1.feedback === 'string');
+ok('followup-0', (await AI.followUp(0, t1)) === FOLLOWUPS[0]);
+const at = await AI.attireScore({ outfit: 'training', hair: 'blue', industry: 'corp' }, null);
+ok('attire-mock-40', at.score === 40 && at.feedback.length > 0);
+
+const world = new World(new THREE.Scene());
+ok('panel-mesh', world.panel && world.panel.isMesh === true);
+function scanIds() {
+  const ids = new Set();
+  for (let x = 0.02; x < 1; x += 0.02) for (let y = 0.02; y < 1; y += 0.02) {
+    const id = world.clickAt({ x, y }); if (id) ids.add(id);
+  }
+  return ids;
+}
+world.showPanel('dress');
+const d = scanIds();
+ok('dress-buttons', ['start', 'hair:blue', 'outfit:training', 'industry:corp'].every(i => d.has(i)));
+world.showPanel('interview'); world.setInterview('질문', false);
+ok('interview-answer', scanIds().has('answer'));
+world.showPanel('report', { content: 80, body: 70, attire: 100, total: 83, grade: 'A', lines: ['a'] });
+ok('report-restart', scanIds().has('restart'));
+ok('head-vec', world.interviewerHead().isVector3 === true);
+
+const cam = new THREE.PerspectiveCamera();
+cam.position.set(0, 1.55, 2.2); cam.lookAt(world.interviewerHead()); cam.updateMatrixWorld();
+const tm = new Telemetry(); tm.start();
+for (let i = 0; i < 120; i++) tm.sample(cam, world.interviewerHead(), 1 / 60);
+ok('eye-contact-1', Math.abs(tm.results().eyePct - 1) < 0.01);
+cam.rotation.y += Math.PI / 2; cam.updateMatrixWorld();
+for (let i = 0; i < 120; i++) tm.sample(cam, world.interviewerHead(), 1 / 60);
+tm.stop();
+const r = tm.results();
+ok('eye-contact-half', r.eyePct > 0.4 && r.eyePct < 0.6);
+ok('bodyscore-range', Number.isInteger(tm.bodyScore()) && tm.bodyScore() >= 0 && tm.bodyScore() <= 100);
+
+document.title = out.filter(l => l.includes('FAIL')).length ? 'SMOKE:FAIL' : 'SMOKE:ALLPASS';
+document.body.textContent = out.join('\n');
+</script>
+</body></html>
