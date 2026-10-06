@@ -1,0 +1,8 @@
+.DS_Store
+docs/*.pdf
+docs/*.aux
+docs/*.log
+docs/*.nav
+docs/*.out
+docs/*.snm
+docs/*.toc
