@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>면접관 — VR Interview Trainer</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0e0f13;font-family:-apple-system,'Apple SD Gothic Neo',sans-serif}
+  canvas{display:block}
+  .ov{position:fixed;z-index:10;color:#eee;pointer-events:none}
+  #hud{top:12px;left:12px;background:rgba(0,0,0,.55);padding:8px 12px;border-radius:8px;
+       font:13px/1.5 ui-monospace,monospace;white-space:pre;display:none}
+  #sub{bottom:28px;left:50%;transform:translateX(-50%);max-width:78%;background:rgba(0,0,0,.62);
+       padding:10px 18px;border-radius:10px;font-size:19px;text-align:center;display:none}
+  #sub .en{display:block;font-size:13px;color:#aab4c0;margin-top:4px}
+  #badge{top:12px;right:12px;background:rgba(0,0,0,.55);padding:6px 12px;border-radius:8px;font-size:12px}
+  #badge b{color:#7fd47f}#badge.live b{color:#ffb84d}
+  #hint{bottom:4px;left:12px;font-size:11px;color:#889}
+  .btn{pointer-events:auto;cursor:pointer;border:0;border-radius:8px;padding:8px 14px;font-size:14px}
+  #vr{top:44px;right:12px;background:#2b6fd6;color:#fff;display:none}
+  #cfgbtn{top:12px;right:96px;background:#333;color:#ccc}
+  #cfg{display:none;position:fixed;z-index:20;top:50%;left:50%;transform:translate(-50%,-50%);
+       background:#1c1e24;border:1px solid #444;border-radius:12px;padding:20px;width:340px;color:#eee}
+  #cfg input{width:100%;box-sizing:border-box;padding:8px;margin:8px 0;background:#111;color:#eee;border:1px solid #555;border-radius:6px}
+  #cfg .row{display:flex;gap:8px;justify-content:flex-end}
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+</head>
+<body data-boot="">
+<div id="hud" class="ov"></div>
+<div id="sub" class="ov"></div>
+<div id="badge" class="ov">모드 <b>MOCK</b></div>
+<div id="hint" class="ov">드래그: 시선 회전 · 패널 클릭: 선택</div>
+<button id="vr" class="ov btn">VR 입장</button>
+<button id="cfgbtn" class="ov btn">⚙ API</button>
+<div id="cfg">
+  <b>OpenAI API 키 (선택)</b>
+  <div style="font-size:12px;color:#999;margin-top:4px">키가 없으면 MOCK 모드로 동작합니다. 키는 이 브라우저(localStorage)에만 저장됩니다.</div>
+  <input id="key" type="password" placeholder="sk-...">
+  <div class="row">
+    <button id="clear" class="btn" style="background:#533">삭제</button>
+    <button id="save" class="btn" style="background:#2b6fd6;color:#fff">저장</button>
+    <button id="close" class="btn" style="background:#333;color:#ccc">닫기</button>
+  </div>
+</div>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
