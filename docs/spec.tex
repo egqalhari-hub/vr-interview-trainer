@@ -1,0 +1,89 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1.5cm]{geometry}
+\usepackage{booktabs}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}
+\begin{document}
+\begin{center}
+{\large\bfseries VR Interview Trainer (\emph{Myeonjeopgwan}) --- Technical Specification}\\[1pt]
+{\footnotesize ApexAvatar (\texttt{Egqalhari@gnu.ac.kr}) \;$\cdot$\; Task 3-2: Meta Quest 2 VR-Based Physical AI Agent \;$\cdot$\; Glocal Project, Gyeongsang National University \;$\cdot$\; Stage 1}
+\end{center}
+\vspace{-2pt}
+
+\textbf{Overview.} A WebXR/three.js r160 single-page app (ES modules + import map, vendored \texttt{three}, \emph{no build step}) simulating a strict Korean job interview on Meta Quest~2 (\texttt{immersive-vr}, \texttt{local-floor}, own ``VR \emph{ipjang}'' button; Meta Quest Browser) and on desktop Chrome (mouse-drag look). One E2E workflow: dressing room (hair / outfit / industry) $\rightarrow$ greeting bow $\rightarrow$ 3 fixed questions (\emph{jagisogae} self-introduction, \emph{jiwondonggi} motivation, \emph{jangdanjeom} strengths/weaknesses), each with exactly 1 adaptive follow-up, voice answers via push-to-talk $\rightarrow$ weighted report board (content / attitude-gaze / attire, S/A/B/C grade). Mock mode (default, zero network) $\leftrightarrow$ live mode (OpenAI key in \texttt{localStorage}); \emph{any} API error falls back to mock for that call only, so a demo can never hard-fail.
+
+\textbf{Architecture.}
+{\footnotesize
+\begin{verbatim}
+index.html  overlay: #hud telemetry | #sub subtitles | #badge MOCK/LIVE | key modal
+       |   import map: three -> vendor/three.module.js  (r160, no build step)
+       v
+js/main.js   renderer | drag-look camera | raycast panel clicks | HUD loop
+             STATE MACHINE: DRESS -> INTERVIEW -> REPORT | MediaRecorder (live only)
+   +--------------------+----------------------------+
+   v                    v                            v
+js/world.js         js/ai.js                      js/telemetry.js
+room; interviewer   mock <-> live adapter:        eye contact (angle <= 15 deg);
+(jaw bob); avatar   whisper-1 STT (ko) /          fidget (rolling std of yaw/pitch
+at fake mirror;     gpt-4o-mini eval+follow-up /  speed, 0.5 rad/s -> 1.0);
+canvas-texture UI   gpt-4o vision attire /        bows (pitch <= -35 deg, debounced);
+panel + buttons     tts-1 nova; per-call fallback bodyScore
+\end{verbatim}}
+\vspace{-4pt}
+
+\textbf{Modules.}
+\begin{center}\footnotesize
+\begin{tabular}{@{}ll@{}}
+\toprule
+File & Responsibility \\
+\midrule
+\texttt{index.html} & UI overlay (\texttt{\#hud}, \texttt{\#sub}, \texttt{\#badge}, API-key modal), import map \\
+\texttt{js/main.js} & renderer, drag-look, raycast clicks, state machine DRESS$\to$INTERVIEW$\to$REPORT, mic (live only) \\
+\texttt{js/world.js} & scene: room, primitive interviewer (jaw bob), player avatar at fake mirror, canvas UI panel \\
+\texttt{js/ai.js} & AI adapter: mock (canned data + rubric + speechSynthesis) $\leftrightarrow$ live (OpenAI) \\
+\texttt{js/telemetry.js} & head-pose body-language metrics: eyePct, fidget, bows, bodyScore \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{-4pt}
+
+\textbf{External APIs (live mode only).}
+\begin{center}\footnotesize
+\begin{tabular}{@{}lll@{}}
+\toprule
+Endpoint & Model & Purpose \\
+\midrule
+audio/transcriptions & whisper-1 & speech-to-text of answers (Korean) \\
+chat/completions & gpt-4o-mini & per-answer evaluation JSON + adaptive follow-ups \\
+chat/completions & gpt-4o & vision attire evaluation from avatar screenshot \\
+audio/speech & tts-1 (voice \emph{nova}) & interviewer voice \\
+\midrule
+\multicolumn{3}{@{}l@{}}{Mock mode: no network --- canned 6-queue transcripts, canned scores $[82,85,74,78,81,80]$, Korean speechSynthesis.} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{-4pt}
+
+\textbf{Data flow.}
+{\footnotesize
+\begin{enumerate}\setlength{\itemsep}{0pt}
+  \item DRESS: panel clicks set hair (black/brown/blond/blue), outfit (suit/casual/training), industry (corp/startup/public); avatar at mirror updates.
+  \item Confirm $\to$ attire scored (rubric in mock; gpt-4o vision on avatar screenshot in live).
+  \item INTERVIEW greeting: interviewer speaks (TTS + jaw bob, subtitles in \texttt{\#sub}); system waits for bow (pitch $\le -35^\circ$).
+  \item Q1--Q3 asked in order; user holds push-to-talk and answers by voice.
+  \item Live: MediaRecorder $\to$ whisper-1 (ko) $\to$ transcript; mock: next canned transcript.
+  \item Each answer $\to$ gpt-4o-mini evaluation JSON (score + feedback) and one adaptive follow-up; mock: canned score + canned follow-up.
+  \item Every frame, telemetry reads camera/HMD pose $\to$ eyePct / fidget / bows $\to$ live HUD.
+  \item REPORT: content = mean of 6 scores; board shows content / body / attire, weighted total, S/A/B/C grade, feedback.
+\end{enumerate}}
+\vspace{-4pt}
+
+\textbf{Key formulas.} Attire: base 70, outfit suit $+20$/casual $+5$/training $-15$, hair black $+10$/brown $+5$/blond $-5$/blue $-15$; startup halves negative adjustments; public sector extra $-5$ for blond/blue hair; clamp $[0,100]$. Verified: suit/black/corp $=100$, casual/brown/startup $=80$, training/blue/corp $=40$. \;
+\texttt{bodyScore} $=\mathrm{clamp}(\texttt{eyePct}\cdot100-\texttt{fidget}\cdot40+\min(\texttt{bows},2)\cdot5,\,0,\,100)$. \;
+\texttt{content} $=$ mean of 6 answer scores (mock: $[82,85,74,78,81,80]\to80$). \;
+\texttt{total} $=0.5\,\texttt{content}+0.3\,\texttt{body}+0.2\,\texttt{attire}$; grade S $\ge90$, A $\ge80$, B $\ge70$, else C.
+
+\textbf{Status.} Developed and verified on the macOS desktop simulator (headless boot smoke check + full mock E2E run). Quest~2 WebXR deployment path implemented; \emph{on-device test pending} (no hardware access in stage 1). Stage 2: Unity port, on-device verification, hand tracking, real lip-sync, multi-interviewer panel, backend proxy for API keys.
+
+\end{document}

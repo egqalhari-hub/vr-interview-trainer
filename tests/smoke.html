@@ -3,6 +3,7 @@
 <script type="importmap">{"imports":{"three":"../vendor/three.module.js"}}</script>
 </head><body>
 <script type="module">
+// Browser smoke test — run headless: dump-dom and grep SMOKE
 import * as THREE from 'three';
 import { AI, FOLLOWUPS } from '../js/ai.js';
 import { Telemetry } from '../js/telemetry.js';
@@ -11,10 +12,12 @@ import { World } from '../js/world.js';
 const out = [];
 const ok = (name, cond) => out.push(`SMOKE:${cond ? 'PASS' : 'FAIL'}:${name}`);
 
+// 1. attire rubric (verified examples from DESIGN.md)
 ok('rubric-suit', AI.scoreAttireLocal({ outfit: 'suit', hair: 'black', industry: 'corp' }) === 100);
 ok('rubric-casual', AI.scoreAttireLocal({ outfit: 'casual', hair: 'brown', industry: 'startup' }) === 80);
 ok('rubric-training', AI.scoreAttireLocal({ outfit: 'training', hair: 'blue', industry: 'corp' }) === 40);
 
+// 2. mock AI paths (zero network)
 const t1 = await AI.stt(null);
 ok('stt-string', typeof t1 === 'string' && t1.length > 5);
 const e1 = await AI.evaluateAnswer('q', t1);
@@ -23,6 +26,7 @@ ok('followup-0', (await AI.followUp(0, t1)) === FOLLOWUPS[0]);
 const at = await AI.attireScore({ outfit: 'training', hair: 'blue', industry: 'corp' }, null);
 ok('attire-mock-40', at.score === 40 && at.feedback.length > 0);
 
+// 3. world builds + button layer hit-testing in every mode
 const world = new World(new THREE.Scene());
 ok('panel-mesh', world.panel && world.panel.isMesh === true);
 function scanIds() {
@@ -41,6 +45,7 @@ world.showPanel('report', { content: 80, body: 70, attire: 100, total: 83, grade
 ok('report-restart', scanIds().has('restart'));
 ok('head-vec', world.interviewerHead().isVector3 === true);
 
+// 4. telemetry: camera staring at interviewer = full eye contact
 const cam = new THREE.PerspectiveCamera();
 cam.position.set(0, 1.55, 2.2); cam.lookAt(world.interviewerHead()); cam.updateMatrixWorld();
 const tm = new Telemetry(); tm.start();

@@ -1,0 +1,171 @@
+\documentclass{beamer}
+\usetheme{default}
+\setbeamertemplate{navigation symbols}{}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+
+\title{VR Interview Trainer (\emph{Myeonjeopgwan})}
+\subtitle{Task 3-2: Meta Quest 2 VR-Based Physical AI Agent}
+\author{ApexAvatar \\ \texttt{Egqalhari@gnu.ac.kr}}
+\institute{Glocal Project, Gyeongsang National University}
+\date{Stage 1 Submission}
+
+\begin{document}
+
+% ---- Slide 1: title ----
+\begin{frame}
+  \titlepage
+  \begin{center}\footnotesize A strict Korean job-interview simulator in WebXR for Meta Quest 2\end{center}
+\end{frame}
+
+% ---- Slide 2: problem ----
+\begin{frame}{Problem: Korean interviews judge three axes at once}
+  \begin{itemize}
+    \item \textbf{Content} --- the quality of what you say.
+    \item \textbf{Body language} --- eye contact, nervous fidgeting, the greeting bow.
+    \item \textbf{Appearance / attire} --- hair and outfit against industry norms.
+  \end{itemize}
+  \bigskip
+  \begin{itemize}
+    \item Human mock interviews: expensive, scarce, subjective.
+    \item Existing software tools: train \emph{content only}.
+  \end{itemize}
+  \begin{block}{Why this project matters}
+    \small Interview results decide careers, but coaching is expensive and unequally available. A free, private, infinitely repeatable VR trainer gives \textbf{every} student embodied practice with measurable feedback --- regional talent gets big-city coaching on a used headset.
+  \end{block}
+\end{frame}
+
+% ---- Slide 3: concept + flow ----
+\begin{frame}{Concept: a strict AI interviewer in VR --- three scenes}
+  \begin{enumerate}
+    \item \textbf{DRESS} --- dressing room: pick hair, outfit, target industry; avatar at a fake mirror updates live.
+    \item \textbf{INTERVIEW} --- greeting bow, then 3 fixed questions (\emph{jagisogae} self-introduction, \emph{jiwondonggi} motivation, \emph{jangdanjeom} strengths/weaknesses), each with 1 adaptive follow-up; voice answers via push-to-talk.
+    \item \textbf{REPORT} --- report board: content / attitude-gaze / attire, weighted total, S/A/B/C grade, feedback.
+  \end{enumerate}
+  \bigskip
+  \begin{itemize}
+    \item WebXR / three.js r160 single-page app --- \textbf{no build step}.
+    \item Meta Quest 2 (Meta Quest Browser, \texttt{immersive-vr}, \texttt{local-floor}) + desktop Chrome (mouse-drag look).
+  \end{itemize}
+\end{frame}
+
+% ---- Slide 4: five core functions ----
+\begin{frame}{Five core functions}
+  \begin{description}
+    \item[F1] Avatar dressing + \textbf{AI attire evaluation} (deterministic rubric; gpt-4o vision in live mode).
+    \item[F2] \textbf{Korean voice Q\&A loop}: STT (whisper-1, ko) \(\to\) LLM evaluation \(\to\) TTS interviewer (tts-1, \emph{nova}).
+    \item[F3] \textbf{Adaptive follow-up questions} generated from each answer.
+    \item[F4] \textbf{Real-time body-language telemetry} + live HUD: eye contact, fidget, bows.
+    \item[F5] \textbf{Weighted evaluation report} with per-answer feedback.
+  \end{description}
+  \bigskip
+  One complete E2E workflow: dress \(\to\) 3-question interview \(\to\) report.
+\end{frame}
+
+% ---- Slide 5: architecture ----
+\begin{frame}{Architecture}
+  \begin{columns}[t]
+    \column{0.52\textwidth}
+      \textbf{Modules}
+      \begin{itemize}\small
+        \item \texttt{index.html} --- overlay: \#hud, \#sub, \#badge (MOCK/LIVE), key modal; import map.
+        \item \texttt{js/main.js} --- renderer, drag-look, raycast clicks, state machine, mic (live only).
+        \item \texttt{js/world.js} --- room, interviewer (jaw bob), avatar + fake mirror, canvas UI panel.
+        \item \texttt{js/ai.js} --- mock \(\leftrightarrow\) live adapter.
+        \item \texttt{js/telemetry.js} --- head-pose metrics.
+      \end{itemize}
+    \column{0.44\textwidth}
+      \textbf{Key properties}
+      \begin{itemize}\small
+        \item Vendored three.js r160, ES modules, zero build.
+        \item Mock mode (default): zero network --- demo can never hard-fail.
+        \item Live mode: whisper-1 / gpt-4o-mini / gpt-4o / tts-1; key in localStorage.
+        \item Any API error \(\to\) per-call fallback to mock.
+      \end{itemize}
+  \end{columns}
+\end{frame}
+
+% ---- Slide 6: evaluation ----
+\begin{frame}{Evaluation: transparent rubric + formulas}
+  \textbf{Attire} (base 70, clamp 0--100):
+  \begin{center}\small
+  \begin{tabular}{ll}
+    \toprule
+    outfit & suit \(+20\) / casual \(+5\) / training \(-15\) \\
+    hair & black \(+10\) / brown \(+5\) / blond \(-5\) / blue \(-15\) \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  startup halves negatives; public sector: extra \(-5\) for blond/blue.
+  Verified: suit/black/corp \(=100\), casual/brown/startup \(=80\), training/blue/corp \(=40\).
+  \bigskip
+  \begin{itemize}\small
+    \item bodyScore \(=\) clamp(eyePct\(\cdot 100\) \(-\) fidget\(\cdot 40\) \(+\) min(bows,\,2)\(\cdot 5\), 0, 100)
+    \item content \(=\) mean of 6 answer scores (mock: \([82,85,74,78,81,80]\to80\))
+    \item total \(=0.5\cdot\)content \(+0.3\cdot\)body \(+0.2\cdot\)attire \quad S \(\ge90\), A \(\ge80\), B \(\ge70\), else C
+  \end{itemize}
+\end{frame}
+
+% ---- Slide 7: demo walkthrough ----
+\begin{frame}{Demo video walkthrough (3:00)}
+  \begin{center}\small
+  \begin{tabular}{@{}lp{0.76\textwidth}@{}}
+    \toprule
+    Time & Content \\
+    \midrule
+    0:00--0:18 & Title + intro: project, Task 3-2, three axes, why it matters. \\
+    0:18--0:45 & Dressing room: click suit / black / large-corp; avatar + mirror update. \\
+    0:45--1:52 & Q1 full cycle: greeting bow, push-to-talk answer, score 82, \\
+               & adaptive follow-up; live HUD visible. Q2/Q3 jump-cut. \\
+    1:52--2:32 & Report board: category bars, per-answer chart, total, grade badge. \\
+    2:32--3:00 & Architecture slide + closing (Quest on-device test = next step). \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \bigskip
+  Recorded on macOS (Cmd+Shift+5) in \textbf{mock mode}: no key, no network, deterministic.
+\end{frame}
+
+% ---- Slide 8: verification ----
+\begin{frame}{Verification results}
+  \begin{itemize}\small
+    \item \textbf{Headless boot smoke check} (primary regression gate): static serve + headless Chrome; pass = no uncaught exceptions, WebGL canvas created, initial state DRESS, telemetry zeroed, badge MOCK.
+    \item \textbf{Full mock E2E run}: Q1 scored 82; six answers \([82,85,74,78,81,80]\) \(\to\) content exactly 80; report board rendered.
+    \item \textbf{Rubric spot checks}: \(70{+}20{+}10{=}100\), \(70{+}5{+}5{=}80\), \(70{-}15{-}15{=}40\) --- verified by hand.
+    \item \textbf{Formula spot checks}: body \(=80-8+5=77\); total \(=40+23.1+20=83.1\to\) grade A.
+    \item \textbf{Fallback drill}: live mode with invalid key --- every call fell back to mock, session completed. Never hard-fail: confirmed.
+  \end{itemize}
+\end{frame}
+
+% ---- Slide 9: limitations + honest status ----
+\begin{frame}{Limitations and honest status}
+  \begin{alertblock}{Status (honest)}
+    Developed and verified on the \textbf{macOS desktop simulator}. Quest 2 deployment path is implemented via WebXR (\texttt{immersive-vr}, \texttt{local-floor}) --- \textbf{on-device test pending} (no hardware access during stage 1).
+  \end{alertblock}
+  \begin{itemize}\small
+    \item Primitive-mesh characters; jaw bob is an animation, not real lip-sync.
+    \item Body language = head pose only; no hand/body tracking yet.
+    \item 3 fixed questions + 1 follow-up each; mock content is canned.
+    \item Live mode: API key in localStorage, direct client-side OpenAI calls --- demo-grade, not production.
+    \item Attire vision eval uses an avatar screenshot, not a camera image.
+  \end{itemize}
+\end{frame}
+
+% ---- Slide 10: roadmap + thanks ----
+\begin{frame}{Stage-2 roadmap}
+  \begin{enumerate}
+    \item \textbf{Unity port} --- the competition's ``typical'' stack.
+    \item \textbf{On-device Quest 2 verification.}
+    \item \textbf{Hand tracking} --- richer body-language signals.
+    \item \textbf{Real lip-sync} for the interviewer.
+    \item \textbf{Multi-interviewer panel.}
+    \item \textbf{Backend proxy} for API keys.
+  \end{enumerate}
+  \bigskip
+  \begin{center}
+    \Large Thank you! \\[4pt]
+    \footnotesize VR Interview Trainer (\emph{Myeonjeopgwan}) --- Task 3-2, Glocal Project, Gyeongsang National University
+  \end{center}
+\end{frame}
+
+\end{document}
